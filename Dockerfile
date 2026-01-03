@@ -1,5 +1,5 @@
 # Stage 1: Go modules
-FROM golang:1.21-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ COPY . .
 # ------------------------------
 # For dev: install air for live reload
 # ------------------------------
-RUN go install github.com/cosmtrek/air@latest
+RUN go install github.com/air-verse/air@latest
 
 EXPOSE 8080
 
