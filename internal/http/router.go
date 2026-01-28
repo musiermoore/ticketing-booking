@@ -5,7 +5,10 @@ import (
 	"net/http"
 
 	"github.com/musiermoore/ticketing-booking/internal/config"
+	"github.com/musiermoore/ticketing-booking/internal/http/controllers"
 	"github.com/musiermoore/ticketing-booking/internal/http/middleware"
+	"github.com/musiermoore/ticketing-booking/internal/repository"
+	"github.com/musiermoore/ticketing-booking/internal/service"
 )
 
 func NewRouter(cfg *config.Config, db *sql.DB) http.Handler {
@@ -23,9 +26,11 @@ func NewRouter(cfg *config.Config, db *sql.DB) http.Handler {
 		w.Write([]byte("Authorized"))
 	})
 
-	protected.HandleFunc("/book", postOnly(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Booking"))
-	}))
+	bookingRepo := repository.NewPostgresBookingRepository(db)
+	bookingSvc := service.NewBookingService(bookingRepo)
+	bookingCtrl := controllers.NewBookingController(bookingSvc)
+
+	protected.HandleFunc("/book", postOnly(bookingCtrl.CreateBooking))
 
 	// Apply JWT middleware ONCE
 	mux.Handle("/", middleware.JWT(cfg)(protected))

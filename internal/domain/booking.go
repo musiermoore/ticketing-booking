@@ -3,9 +3,9 @@ package domain
 import "time"
 
 type Booking struct {
-	ID        int64  // UUID
-	UserID    string // comes from auth microservice
-	EventID   string // the booked event
+	ID        int64 // UUID
+	UserID    int64 // comes from auth microservice
+	EventID   int64 // the booked event
 	CreatedAt time.Time
 }
 

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"time"
 
 	"github.com/musiermoore/ticketing-booking/internal/domain"
 )
@@ -16,19 +17,21 @@ func NewPostgresBookingRepository(db *sql.DB) *PostgresBookingRepository {
 
 func (r *PostgresBookingRepository) Create(b domain.Booking) (*domain.Booking, error) {
 	var id int64
+	var createdAt time.Time
 	err := r.db.QueryRow(
-		"INSERT INTO bookings (user_id, event_id) VALUES ($1, $2) RETURNING id",
+		"INSERT INTO bookings (user_id, event_id) VALUES ($1, $2) RETURNING id, created_at",
 		b.UserID, b.EventID,
-	).Scan(&id)
+	).Scan(&id, &createdAt)
 	if err != nil {
 		return nil, err
 	}
 
 	b.ID = id
+	b.CreatedAt = createdAt
 	return &b, nil
 }
 
-func (r *PostgresBookingRepository) GetByID(id string) (*domain.Booking, error) {
+func (r *PostgresBookingRepository) GetByID(id int64) (*domain.Booking, error) {
 	row := r.db.QueryRow(
 		"SELECT id, user_id, event_id, created_at FROM bookings WHERE id=$1",
 		id,

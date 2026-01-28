@@ -15,8 +15,8 @@ func NewBookingService(repo domain.BookingRepository) *BookingService {
 }
 
 // CreateBooking just needs userID and eventID
-func (s *BookingService) CreateBooking(userID, eventID string) (*domain.Booking, error) {
-	if userID == "" || eventID == "" {
+func (s *BookingService) CreateBooking(userID, eventID int64) (*domain.Booking, error) {
+	if userID == 0 || eventID == 0 {
 		return nil, errors.New("userID and eventID are required")
 	}
 
