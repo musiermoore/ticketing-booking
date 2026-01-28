@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -50,9 +51,27 @@ func JWT(cfg *config.Config) func(http.Handler) http.Handler {
 				return
 			}
 
-			userID, ok := claims["sub"]
+			sub, ok := claims["sub"]
+
 			if !ok {
 				http.Error(w, "Missing subject", http.StatusUnauthorized)
+				return
+			}
+
+			var userID int64
+
+			switch v := sub.(type) {
+			case float64: // numeric JWT sub
+				userID = int64(v)
+			case string: // string JWT sub
+				var err error
+				userID, err = strconv.ParseInt(v, 10, 64)
+				if err != nil {
+					http.Error(w, "Invalid user ID", http.StatusUnauthorized)
+					return
+				}
+			default:
+				http.Error(w, "Invalid user ID type", http.StatusUnauthorized)
 				return
 			}
 
