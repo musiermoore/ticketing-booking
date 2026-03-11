@@ -19,14 +19,18 @@ func NewBookingController(bs *service.BookingService) *BookingController {
 
 func (c *BookingController) CreateBooking(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		EventID float64 `json:"event_id"`
+		EventID json.Number `json:"event_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	eventID := int64(input.EventID)
+	eventID, err := input.EventID.Int64()
+	if err != nil {
+		http.Error(w, "invalid event_id", http.StatusBadRequest)
+		return
+	}
 
 	userIDValue := r.Context().Value(middleware.UserIDKey)
 	if userIDValue == "" {
@@ -40,7 +44,8 @@ func (c *BookingController) CreateBooking(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	booking, err := c.bookingService.CreateBooking(userID, eventID)
+	authHeader := r.Header.Get("Authorization")
+	booking, err := c.bookingService.CreateBooking(r.Context(), userID, eventID, authHeader)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
