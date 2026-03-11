@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 
+	"github.com/musiermoore/ticketing-booking/internal/clients"
 	"github.com/musiermoore/ticketing-booking/internal/config"
 	"github.com/musiermoore/ticketing-booking/internal/http/controllers"
 	"github.com/musiermoore/ticketing-booking/internal/http/middleware"
@@ -27,7 +28,8 @@ func NewRouter(cfg *config.Config, db *sql.DB) http.Handler {
 	})
 
 	bookingRepo := repository.NewPostgresBookingRepository(db)
-	bookingSvc := service.NewBookingService(bookingRepo)
+	eventsClient := clients.NewEventsClient(cfg.APIBaseURL)
+	bookingSvc := service.NewBookingService(bookingRepo, eventsClient)
 	bookingCtrl := controllers.NewBookingController(bookingSvc)
 
 	protected.HandleFunc("/book", postOnly(bookingCtrl.CreateBooking))

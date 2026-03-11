@@ -15,6 +15,8 @@ type Config struct {
 	DBName string
 
 	JWTPublicKey string
+
+	APIBaseURL string
 }
 
 func Load() *Config {
@@ -26,6 +28,7 @@ func Load() *Config {
 		DBPass:       getEnv("DB_PASS", "postgres"),
 		DBName:       getEnv("DB_NAME", "ticketing_booking"),
 		JWTPublicKey: getEnv("JWT_PUBLIC_KEY", ""),
+		APIBaseURL:   getEnv("API_BASE_URL", ""),
 	}
 
 	if cfg.JWTPublicKey == "" {
