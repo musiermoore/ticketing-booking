@@ -13,4 +13,5 @@ type Booking struct {
 type BookingRepository interface {
 	Create(b Booking) (*Booking, error)
 	GetByID(id int64) (*Booking, error)
+	Remove(userID, id int64) error
 }

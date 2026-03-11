@@ -43,3 +43,12 @@ func (r *PostgresBookingRepository) GetByID(id int64) (*domain.Booking, error) {
 	}
 	return &b, nil
 }
+
+func (r *PostgresBookingRepository) Remove(userID, id int64) error {
+	_, err := r.db.Query(
+		"DELETE FROM bookings WHERE id=$1 AND user_id=$2",
+		id, userID,
+	)
+
+	return err
+}

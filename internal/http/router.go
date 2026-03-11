@@ -32,7 +32,8 @@ func NewRouter(cfg *config.Config, db *sql.DB) http.Handler {
 	bookingSvc := service.NewBookingService(bookingRepo, eventsClient)
 	bookingCtrl := controllers.NewBookingController(bookingSvc)
 
-	protected.HandleFunc("/book", postOnly(bookingCtrl.CreateBooking))
+	protected.HandleFunc("/tickets/book", postOnly(bookingCtrl.CreateBooking))
+	protected.HandleFunc("/tickets/{id}/unbook", deleteOnly(bookingCtrl.RemoveBooking))
 
 	// Apply JWT middleware ONCE
 	mux.Handle("/", middleware.JWT(cfg)(protected))
@@ -40,12 +41,20 @@ func NewRouter(cfg *config.Config, db *sql.DB) http.Handler {
 	return mux
 }
 
-func postOnly(h http.HandlerFunc) http.HandlerFunc {
+func checkMethod(h http.HandlerFunc, method string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
+		if r.Method != method {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		h(w, r)
 	}
+}
+
+func postOnly(h http.HandlerFunc) http.HandlerFunc {
+	return checkMethod(h, http.MethodPost)
+}
+
+func deleteOnly(h http.HandlerFunc) http.HandlerFunc {
+	return checkMethod(h, http.MethodDelete)
 }

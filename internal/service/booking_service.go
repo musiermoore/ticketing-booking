@@ -39,3 +39,20 @@ func (s *BookingService) CreateBooking(ctx context.Context, userID, eventID int6
 
 	return s.repo.Create(b)
 }
+
+// CreateBooking just needs userID and eventID
+func (s *BookingService) RemoveBooking(ctx context.Context, userID, bookingID int64) error {
+	booking, err := s.repo.GetByID(bookingID)
+
+	if err != nil || booking.UserID != userID || booking.ID != bookingID {
+		return errors.New("Booking not found.")
+	}
+
+	err = s.repo.Remove(userID, bookingID)
+
+	if err != nil {
+		return errors.New("Booking is not deleted.")
+	}
+
+	return nil
+}
