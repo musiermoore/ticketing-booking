@@ -17,6 +17,7 @@ type Config struct {
 	JWTPublicKey string
 
 	APIBaseURL string
+	UIBaseURL  string
 }
 
 func Load() *Config {
@@ -29,6 +30,7 @@ func Load() *Config {
 		DBName:       getEnv("DB_NAME", "ticketing_booking"),
 		JWTPublicKey: getEnv("JWT_PUBLIC_KEY", ""),
 		APIBaseURL:   getEnv("API_BASE_URL", ""),
+		UIBaseURL:    getEnv("UI_BASE_URL", "http://localhost:5173"),
 	}
 
 	if cfg.JWTPublicKey == "" {
