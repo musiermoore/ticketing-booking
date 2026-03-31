@@ -20,6 +20,16 @@ func NewBookingService(repo domain.BookingRepository, events EventValidator) *Bo
 	return &BookingService{repo: repo, events: events}
 }
 
+func (s *BookingService) GetList(ctx context.Context, userID, page int64) ([]domain.Booking, error) {
+	// Call repository to get bookings
+	bookings, err := s.repo.GetList(userID, page)
+	if err != nil {
+		return nil, err
+	}
+
+	return bookings, nil
+}
+
 // CreateBooking just needs userID and eventID
 func (s *BookingService) CreateBooking(ctx context.Context, userID, eventID int64, authHeader string) (*domain.Booking, error) {
 	if userID == 0 || eventID == 0 {

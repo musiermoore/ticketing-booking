@@ -44,6 +44,39 @@ func (r *PostgresBookingRepository) GetByID(id int64) (*domain.Booking, error) {
 	return &b, nil
 }
 
+func (r *PostgresBookingRepository) GetList(userID, page int64) ([]domain.Booking, error) {
+	var limit int64 = 10
+	offset := (page - 1) * limit
+
+	rows, err := r.db.Query(
+		"SELECT id, user_id, event_id, created_at FROM bookings WHERE user_id=$1 LIMIT $2 OFFSET $3",
+		userID, limit, offset,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var bookings []domain.Booking
+
+	for rows.Next() {
+		var b domain.Booking
+
+		if err := rows.Scan(&b.ID, &b.UserID, &b.EventID, &b.CreatedAt); err != nil {
+			return nil, err
+		}
+
+		bookings = append(bookings, b)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return bookings, nil
+}
+
 func (r *PostgresBookingRepository) Remove(userID, id int64) error {
 	_, err := r.db.Query(
 		"DELETE FROM bookings WHERE id=$1 AND user_id=$2",
