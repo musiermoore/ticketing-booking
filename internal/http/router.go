@@ -2,9 +2,11 @@ package http
 
 import (
 	"database/sql"
-	"net/http"
+	stdhttp "net/http"
 	"net/url"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 
 	"github.com/musiermoore/ticketing-booking/internal/clients"
 	"github.com/musiermoore/ticketing-booking/internal/config"
@@ -14,75 +16,79 @@ import (
 	"github.com/musiermoore/ticketing-booking/internal/service"
 )
 
-func NewRouter(cfg *config.Config, db *sql.DB) http.Handler {
-	mux := http.NewServeMux()
-
-	// Public routes
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("OK"))
-	})
-
-	// Protected routes
-	protected := http.NewServeMux()
-
-	protected.HandleFunc("/auth/check", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Authorized"))
-	})
+func NewRouter(cfg *config.Config, db *sql.DB) stdhttp.Handler {
+	router := gin.New()
+	router.Use(gin.Logger(), gin.Recovery(), corsMiddleware(cfg))
 
 	bookingRepo := repository.NewPostgresBookingRepository(db)
 	eventsClient := clients.NewEventsClient(cfg.APIBaseURL)
 	bookingSvc := service.NewBookingService(bookingRepo, eventsClient)
 	bookingCtrl := controllers.NewBookingController(bookingSvc)
 
-	protected.HandleFunc("/tickets", getOnly(bookingCtrl.GetList))
-	protected.HandleFunc("/tickets/book", postOnly(bookingCtrl.CreateBooking))
-	protected.HandleFunc("/tickets/{id}/unbook", deleteOnly(bookingCtrl.RemoveBooking))
+	router.GET("/health", func(c *gin.Context) {
+		c.String(stdhttp.StatusOK, "OK")
+	})
 
-	// Apply JWT middleware ONCE
-	mux.Handle("/", middleware.JWT(cfg)(protected))
+	protected := router.Group("/")
+	protected.Use(wrapStdMiddleware(middleware.JWT(cfg)))
 
-	return withCORS(cfg, mux)
+	protected.GET("/auth/check", func(c *gin.Context) {
+		c.String(stdhttp.StatusOK, "Authorized")
+	})
+	protected.GET("/tickets", wrapHTTPHandler(bookingCtrl.GetList))
+	protected.POST("/tickets/book", wrapHTTPHandler(bookingCtrl.CreateBooking))
+	protected.DELETE("/tickets/:id/unbook", wrapHTTPHandler(bookingCtrl.RemoveBooking))
+
+	return router
 }
 
-func checkMethod(h http.HandlerFunc, method string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != method {
-			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-			return
+func wrapHTTPHandler(handler stdhttp.HandlerFunc) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		req := c.Request.Clone(c.Request.Context())
+		for _, param := range c.Params {
+			req.SetPathValue(param.Key, param.Value)
 		}
-		h(w, r)
+
+		handler(c.Writer, req)
 	}
 }
 
-func getOnly(h http.HandlerFunc) http.HandlerFunc {
-	return checkMethod(h, http.MethodGet)
+func wrapStdMiddleware(mw func(stdhttp.Handler) stdhttp.Handler) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var nextCalled bool
+
+		handler := mw(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+			nextCalled = true
+			c.Request = r
+			c.Next()
+		}))
+
+		handler.ServeHTTP(c.Writer, c.Request)
+
+		if !nextCalled {
+			c.Abort()
+		}
+	}
 }
 
-func postOnly(h http.HandlerFunc) http.HandlerFunc {
-	return checkMethod(h, http.MethodPost)
-}
-
-func deleteOnly(h http.HandlerFunc) http.HandlerFunc {
-	return checkMethod(h, http.MethodDelete)
-}
-
-func withCORS(cfg *config.Config, next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		origin := r.Header.Get("Origin")
+func corsMiddleware(cfg *config.Config) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		origin := c.GetHeader("Origin")
 		if isAllowedOrigin(origin, cfg.UIBaseURL) {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
-			w.Header().Set("Vary", "Origin")
-			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, Origin")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+			c.Writer.Header().Set("Vary", "Origin")
+			c.Writer.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, Origin")
+			c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
 		}
 
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
+		if c.Request.Method == stdhttp.MethodOptions {
+			c.Status(stdhttp.StatusNoContent)
+			c.Abort()
 			return
 		}
 
-		next.ServeHTTP(w, r)
-	})
+		c.Next()
+	}
 }
 
 func isAllowedOrigin(origin, configured string) bool {

@@ -19,5 +19,7 @@ func NewServer(cfg *config.Config, db *sql.DB) *Server {
 func (s *Server) Start() {
 	router := NewRouter(s.cfg, s.db)
 
-	http.ListenAndServe(":"+s.cfg.AppPort, router)
+	if err := http.ListenAndServe(":"+s.cfg.AppPort, router); err != nil {
+		panic(err)
+	}
 }
